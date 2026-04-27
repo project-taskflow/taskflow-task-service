@@ -1,0 +1,61 @@
+{{- if .Values.taskService.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ .Values.taskService.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.taskService.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.taskService.name }}
+  strategy:
+    blueGreen:
+      activeService: {{ .Values.taskService.name }}
+      previewService: {{ printf "%s-preview" .Values.taskService.name }}
+      autoPromotionEnabled: true
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.taskService.name }}
+    spec:
+{{- with .Values.taskService.podSecurityContext }}
+      securityContext:
+{{ toYaml . | nindent 8 }}
+{{- end }}
+      containers:
+        - name: {{ .Values.taskService.name }}
+          image: {{ .Values.taskService.image }}
+          imagePullPolicy: {{ .Values.taskService.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.taskService.containerPort }}
+{{- with .Values.taskService.env }}
+          env:
+{{ toYaml . | nindent 12 }}
+{{- end }}
+{{- with .Values.taskService.resources }}
+          resources:
+{{ toYaml . | nindent 12 }}
+{{- end }}
+{{- with .Values.taskService.livenessProbe }}
+          livenessProbe:
+{{ toYaml . | nindent 12 }}
+{{- end }}
+{{- with .Values.taskService.readinessProbe }}
+          readinessProbe:
+{{ toYaml . | nindent 12 }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.taskService.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: {{ .Values.taskService.name }}
+  ports:
+    - port: {{ .Values.taskService.servicePort }}
+      targetPort: {{ .Values.taskService.serviceTargetPort }}
+  type: {{ .Values.taskService.serviceType }}
+
