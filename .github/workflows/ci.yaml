@@ -1,0 +1,57 @@
+name: Auth Service CI/CD
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag in the format task-service-vX.Y.Z
+        required: true
+        type: string
+
+jobs:
+  ci:
+    if: github.event_name != 'workflow_dispatch'
+    uses: project-taskflow/taskflow/.github/workflows/reusable-ci.yaml@main
+    with:
+      trigger_event: ${{ github.event_name }}
+      source_sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      service_name: task-service
+      image_name: task-service
+      helm_values_key: taskService
+      dev_manifest_path: argocd-test/dev/task-service-application.yaml
+      sonar_key: project-taskflow_taskflow-task-service_9ce72c11-e89a-44c3-8b18-244a794a5c14
+      dockerfile_path: ./Dockerfile
+      working_directory: .
+      infra_repository: project-taskflow/taskflow
+      infra_ref: main
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_URL: ${{ secrets.SONAR_URL }}
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      TOKEN: ${{ secrets.TOKEN }}
+      EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+      EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    uses: project-taskflow/taskflow/.github/workflows/reusable-release.yaml@main
+    with:
+      release_tag: ${{ inputs.release_tag }}
+      service_name: auth-service
+      image_name: auth-service
+      helm_values_key: authService
+      dev_manifest_path: argocd-test/dev/auth-service-application.yaml
+      prod_manifest_path: argocd-test/prod/auth-service-application.yaml
+      infra_repository: project-taskflow/taskflow
+      infra_ref: main
+    secrets:
+      TOKEN: ${{ secrets.TOKEN }}
+      EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+      EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+
